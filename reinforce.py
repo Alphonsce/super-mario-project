@@ -1,7 +1,6 @@
 from collections import Counter
 import csv
 import os
-import time
 from datetime import datetime
 
 import gym_super_mario_bros
@@ -34,7 +33,9 @@ def get_reward(r):
     return r
 
 
-class ActorCritic(nn.Module):
+class PolicyNetwork(nn.Module):
+    """Policy network with optional value baseline for variance reduction."""
+
     def __init__(self, n_frame, act_dim):
         super().__init__()
         self.net = nn.Sequential(
@@ -45,6 +46,7 @@ class ActorCritic(nn.Module):
         )
         self.linear = nn.Linear(20736, 512)
         self.policy_head = nn.Linear(512, act_dim)
+        # Optional baseline network (REINFORCE with baseline)
         self.value_head = nn.Linear(512, 1)
 
     def forward(self, x):
@@ -55,7 +57,6 @@ class ActorCritic(nn.Module):
         x = self.net(x)
         x = x.reshape(-1, 20736)
         x = torch.relu(self.linear(x))
-
         return self.policy_head(x), self.value_head(x).squeeze(-1)
 
     def act(self, obs):
@@ -66,22 +67,20 @@ class ActorCritic(nn.Module):
         return action, logprob, value
 
 
-def compute_gae_batch(rewards, values, dones, gamma=0.99, lam=0.95):
+def compute_returns(rewards, dones, gamma=0.99):
+    """Compute Monte Carlo returns with discounting."""
     T, N = rewards.shape
-    advantages = torch.zeros_like(rewards)
-    gae = torch.zeros(N, device=device)
+    returns = torch.zeros_like(rewards)
+    running_return = torch.zeros(N, device=device)
 
     for t in reversed(range(T)):
-        not_done = 1.0 - dones[t]
-        delta = rewards[t] + gamma * values[t + 1] * not_done - values[t]
-        gae = delta + gamma * lam * not_done * gae
-        advantages[t] = gae
-
-    returns = advantages + values[:-1]
-    return advantages, returns
+        running_return = rewards[t] + gamma * running_return * (1 - dones[t])
+        returns[t] = running_return
+    return returns
 
 
-def rollout_with_bootstrap(envs, model, rollout_steps, init_obs):
+def rollout_reinforce(envs, model, rollout_steps, init_obs, gamma=0.99):
+    """Collect trajectories for REINFORCE update."""
     obs = init_obs
     obs = torch.tensor(obs, dtype=torch.float32).to(device)
     obs_buf, act_buf, rew_buf, done_buf, val_buf, logp_buf = [], [], [], [], [], []
@@ -98,7 +97,6 @@ def rollout_with_bootstrap(envs, model, rollout_steps, init_obs):
 
         actions = action.cpu().numpy()
         next_obs, reward, done, infos = envs.step(actions)
-
         reward = [get_reward(r) for r in reward]
 
         rew_buf.append(torch.tensor(reward, dtype=torch.float32).to(device))
@@ -112,36 +110,35 @@ def rollout_with_bootstrap(envs, model, rollout_steps, init_obs):
         obs = torch.tensor(next_obs, dtype=torch.float32).to(device)
         max_stage = max([i["stage"] for i in infos])
 
-    with torch.no_grad():
-        _, last_value = model.forward(obs)
-
-    obs_buf = torch.stack(obs_buf)
-    act_buf = torch.stack(act_buf)
     rew_buf = torch.stack(rew_buf)
     done_buf = torch.stack(done_buf)
     val_buf = torch.stack(val_buf)
-    val_buf = torch.cat([val_buf, last_value.unsqueeze(0)], dim=0)
-    logp_buf = torch.stack(logp_buf)
 
-    adv_buf, ret_buf = compute_gae_batch(rew_buf, val_buf, done_buf)
-    adv_buf = (adv_buf - adv_buf.mean()) / (adv_buf.std() + 1e-8)
+    returns = compute_returns(rew_buf, done_buf, gamma)
+    returns = (returns - returns.mean()) / (returns.std() + 1e-8)
+
+    obs_buf = torch.stack(obs_buf)
+    act_buf = torch.stack(act_buf)
+    logp_buf = torch.stack(logp_buf)
 
     return {
         "obs": obs_buf,
         "actions": act_buf,
         "logprobs": logp_buf,
-        "advantages": adv_buf,
-        "returns": ret_buf,
+        "returns": returns,
+        "baselines": val_buf,
         "max_stage": max_stage,
         "last_obs": obs,
     }
 
 
 def evaluate_policy(env, model, episodes=5, render=False):
+    """Evaluate the learned policy."""
     model.eval()
     total_returns = []
     actions = []
     stages = []
+
     for ep in range(episodes):
         obs = env.reset()
         done = False
@@ -149,80 +146,54 @@ def evaluate_policy(env, model, episodes=5, render=False):
         if render:
             env.render()
         while not done:
-            obs_tensor = (
-                torch.tensor(np.array(obs), dtype=torch.float32).unsqueeze(0).to(device)
-            )
+            obs_tensor = torch.tensor(np.array(obs), dtype=torch.float32).unsqueeze(0).to(device)
             with torch.no_grad():
                 logits, _ = model(obs_tensor)
                 dist = torch.distributions.Categorical(logits=logits)
                 action = dist.probs.argmax(dim=-1).item()
                 actions.append(action)
-
             obs, reward, done, info = env.step(action)
             stages.append(info["stage"])
             total_reward += reward
 
         total_returns.append(total_reward)
         info["action_count"] = Counter(actions)
+
     model.train()
     return np.mean(total_returns), info, max(stages)
 
 
 class CSVLogger:
-    """Simple CSV logger that appends rows immediately."""
+    """Minimal CSV logger for REINFORCE: logs policy_loss per update."""
 
     def __init__(self, experiment_name, log_dir="logs"):
         os.makedirs(log_dir, exist_ok=True)
         self.filepath = os.path.join(log_dir, f"{experiment_name}.csv")
-        self.batch_fields = [
-            "timestamp", "update", "epoch", "batch",
-            "policy_loss", "value_loss", "entropy", "clip_frac"
-        ]
-        self.update_fields = [
-            "timestamp", "update", "type",
-            "avg_return", "max_stage", "avg_score", "eval_max_stage", "info"
-        ]
-        # Write headers if file doesn't exist
+        self.fields = ["timestamp", "update", "policy_loss", "avg_return", "max_stage", "eval_avg_return",
+                       "eval_max_stage"]
+
         if not os.path.exists(self.filepath):
             with open(self.filepath, "w", newline="") as f:
-                writer = csv.DictWriter(f, fieldnames=self.batch_fields + ["step_type"])
+                writer = csv.DictWriter(f, fieldnames=self.fields)
                 writer.writeheader()
 
-    def log_batch(self, update, epoch, batch, policy_loss, value_loss, entropy, clip_frac):
+    def log(self, update, policy_loss, avg_return, max_stage, eval_avg_return=None, eval_max_stage=None):
         row = {
             "timestamp": datetime.now().isoformat(),
             "update": update,
-            "epoch": epoch,
-            "batch": batch,
             "policy_loss": policy_loss,
-            "value_loss": value_loss,
-            "entropy": entropy,
-            "clip_frac": clip_frac,
-            "step_type": "batch"
-        }
-        with open(self.filepath, "a", newline="") as f:
-            writer = csv.DictWriter(f, fieldnames=self.batch_fields + ["step_type"])
-            writer.writerow(row)
-
-    def log_update(self, update, avg_return, max_stage, avg_score=None, eval_max_stage=None, info=None):
-        row = {
-            "timestamp": datetime.now().isoformat(),
-            "update": update,
-            "type": "update_summary",
             "avg_return": avg_return,
             "max_stage": max_stage,
-            "avg_score": avg_score,
+            "eval_avg_return": eval_avg_return,
             "eval_max_stage": eval_max_stage,
-            "info": str(info) if info else "",
-            "step_type": "update"
         }
         with open(self.filepath, "a", newline="") as f:
-            writer = csv.DictWriter(f, fieldnames=self.update_fields + ["step_type"])
+            writer = csv.DictWriter(f, fieldnames=self.fields)
             writer.writerow(row)
 
 
-def train_ppo(experiment_name="mario_ppo_default"):
-    # Initialize CSV logger
+def train_reinforce(experiment_name="mario_reinforce_default"):
+    # Initialize logger
     logger = CSVLogger(f"mario_{experiment_name}")
     print(f"📁 Logging to: {logger.filepath}")
 
@@ -231,24 +202,24 @@ def train_ppo(experiment_name="mario_ppo_default"):
     obs_dim = envs.single_observation_space.shape[-1]
     act_dim = envs.single_action_space.n
     print(f"{obs_dim=} {act_dim=}")
-    model = ActorCritic(obs_dim, act_dim).to(device)
-    # model.load_state_dict(torch.load("mario_1_1.pt"))
+
+    model = PolicyNetwork(obs_dim, act_dim).to(device)
     optimizer = optim.Adam(model.parameters(), lr=2.5e-4)
 
     rollout_steps = 128
-    epochs = 4
-    minibatch_size = 64
-    clip_eps = 0.2
-    vf_coef = 0.5
-    ent_coef = 0.01
+    gamma = 0.99
+    use_baseline = False
+    baseline_coef = 0.5
+
     eval_env = make_env()
     eval_env.reset()
-
     init_obs = envs.reset()
     update = 0
+
     while True:
         update += 1
-        batch = rollout_with_bootstrap(envs, model, rollout_steps, init_obs)
+
+        batch = rollout_reinforce(envs, model, rollout_steps, init_obs, gamma)
         init_obs = batch["last_obs"]
 
         T, N = rollout_steps, envs.num_envs
@@ -257,70 +228,49 @@ def train_ppo(experiment_name="mario_ppo_default"):
         obs = batch["obs"].reshape(total_size, *envs.single_observation_space.shape)
         act = batch["actions"].reshape(total_size)
         logp_old = batch["logprobs"].reshape(total_size)
-        adv = batch["advantages"].reshape(total_size)
-        ret = batch["returns"].reshape(total_size)
+        returns = batch["returns"].reshape(total_size)
 
-        # ============ PER-BATCH LOGGING TO CSV ============
-        batch_counter = 0
-        for epoch in range(epochs):
-            idx = torch.randperm(total_size)
-            for start in range(0, total_size, minibatch_size):
-                batch_counter += 1
-                i = idx[start: start + minibatch_size]
-                logits, value = model(obs[i])
-                dist = torch.distributions.Categorical(logits=logits)
-                logp = dist.log_prob(act[i])
-                ratio = torch.exp(logp - logp_old[i])
+        if use_baseline:
+            baselines = batch["baselines"].reshape(total_size)
+            advantages = returns - baselines
+        else:
+            advantages = returns
 
-                # Compute clip fraction
-                clip_mask = (ratio < 1 - clip_eps) | (ratio > 1 + clip_eps)
-                clip_frac = clip_mask.float().mean().item()
+        # === SINGLE POLICY GRADIENT UPDATE ===
+        logits, value = model(obs)
+        dist = torch.distributions.Categorical(logits=logits)
+        logp = dist.log_prob(act)
 
-                surr1 = ratio * adv[i]
-                surr2 = torch.clamp(ratio, 1 - clip_eps, 1 + clip_eps) * adv[i]
-                policy_loss = -torch.min(surr1, surr2).mean()
-                value_loss = (ret[i] - value).pow(2).mean()
-                entropy = dist.entropy().mean()
-                loss = policy_loss + vf_coef * value_loss - ent_coef * entropy
+        policy_loss = -(logp * advantages.detach()).mean()
 
-                optimizer.zero_grad()
-                loss.backward()
-                optimizer.step()
+        if use_baseline:
+            value_loss = (returns - value).pow(2).mean()
+            loss = policy_loss + baseline_coef * value_loss
+        else:
+            loss = policy_loss
 
-                # Log to CSV immediately
-                logger.log_batch(
-                    update=update,
-                    epoch=epoch,
-                    batch=batch_counter,
-                    policy_loss=policy_loss.item(),
-                    value_loss=value_loss.item(),
-                    entropy=entropy.item(),
-                    clip_frac=clip_frac
-                )
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+        # =====================================
 
-                # Console output (compact)
-                print(f"  [Upd {update} Ep {epoch} B {batch_counter}] "
-                      f"pol={policy_loss.item():.4f} val={value_loss.item():.4f} "
-                      f"ent={entropy.item():.4f} clip={clip_frac:.3f}", end='\r')
-
-        # Clear batch log line
-        print(" " * 120, end='\r')
-        # ==================================================
-
-        # Update-level metrics
-        avg_return = batch["returns"].mean().item()
+        # Metrics
+        avg_return = returns.mean().item()
         max_stage = batch["max_stage"]
-        print(f"✅ Update {update}: avg_return={avg_return:.2f} max_stage={max_stage}")
+        policy_loss_val = policy_loss.item()
 
-        # Log update summary to CSV
-        logger.log_update(update, avg_return, max_stage)
+        # Console output
+        print(f"Update {update}: policy_loss={policy_loss_val:.4f}, avg_return={avg_return:.2f}, max_stage={max_stage}")
 
-        # Eval and save
+        # Log to CSV (only policy_loss as requested, plus context)
+        logger.log(update, policy_loss_val, avg_return, max_stage)
+
+        # Evaluation and saving
         if update % 10 == 0:
             avg_score, info, eval_max_stage = evaluate_policy(
                 eval_env, model, episodes=1, render=False
             )
-            print(f"🎯 [Eval] Update {update}: avg_score={avg_score:.2f} eval_max_stage={eval_max_stage}")
+            print(f"[Eval] Update {update}: avg_return={avg_score:.2f}, eval_max_stage={eval_max_stage}")
 
             # Log eval results to CSV
             logger.log_update(update, avg_return, max_stage, avg_score, eval_max_stage, info)
@@ -336,14 +286,12 @@ def train_ppo(experiment_name="mario_ppo_default"):
 
 
 if __name__ == "__main__":
-    # Run with custom experiment name:
-    # python script.py --experiment my_run_v1
     import sys
 
-    experiment_name = "mario_ppo_default"
+    experiment_name = "mario_reinforce_default"
     if "--experiment" in sys.argv:
         idx = sys.argv.index("--experiment")
         if idx + 1 < len(sys.argv):
             experiment_name = sys.argv[idx + 1]
 
-    train_ppo(experiment_name=experiment_name)
+    train_reinforce(experiment_name=experiment_name)
