@@ -366,7 +366,7 @@ A2C achieves **perfect completion rate** with the most consistent behavior. PPO 
 
 <table>
   <tr>
-    <td align="center"><b>PPO</b> (LR = 1e-5, update 8750)</td>
+    <td align="center"><b>PPO</b> (LR = 1e-5, update 5000)</td>
     <td align="center"><b>A2C</b> (LR = 1e-3, update 5000)</td>
     <td align="center"><b>REINFORCE</b> (LR = 1e-4, update 5000)</td>
   </tr>
