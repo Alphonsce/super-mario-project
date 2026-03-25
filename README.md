@@ -163,11 +163,16 @@ REINFORCE is the simplest policy gradient method. It uses **Monte Carlo returns*
 
 The policy gradient is:
 
-$$\nabla_\theta J(\theta) = \mathbb{E}_{\tau \sim \pi_\theta} \left[ \sum_{t=0}^{T} \nabla_\theta \log \pi_\theta(a_t | s_t)  G_t \right]$$
+$$
+\nabla_\theta J(\theta) = \mathbb{E}_{\pi_\theta}\left[
+\sum_{t=0}^{\tau-1}
+G_t \nabla_\theta \log \ \pi_\theta(a_t \mid s_t)
+\right]
+$$
 
 where the return is computed as:
 
-$$G_t = \sum_{k=0}^{T-t} \gamma^k r_{t+k+1}$$
+$$G_t = \sum_{k=t}^{\tau-1} \gamma^{k-t} r_k$$
 
 The total loss includes an entropy regularization term:
 
