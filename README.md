@@ -159,24 +159,23 @@ All methods collect rollouts from **8 parallel environments** over **512 local s
 
 ### REINFORCE
 
-REINFORCE is the simplest policy gradient method. It uses **Monte Carlo returns** — the full discounted cumulative reward from each time step — to weight the log-probability of actions. No value function baseline is used for variance reduction; only the raw return $G_t$ scales the gradient.
+REINFORCE is the simplest policy gradient method. It uses **Monte Carlo returns** — the full discounted cumulative reward from each time step — to weight the log-probability of actions. No value function baseline is used for variance reduction; only the raw return $G_T$ scales the gradient.
 
-The policy gradient is:
+The Monte Carlo return at timestep $T$ is:
 
-$$
-\nabla_\theta J(\theta) = \mathbb{E}_{\pi_\theta}\left[
-\sum_{t=0}^{\tau-1}
-G_t \nabla_\theta \log \ \pi_\theta(a_t \mid s_t)
-\right]
-$$
+$$G_T = \sum_{k=T}^{\tau-1} \gamma^{k-T} R_k$$
 
-where the return is computed as:
+where $\tau$ is the rollout length and $R_k$ is the reward at step $k$.
 
-$$G_t = \sum_{k=t}^{\tau-1} \gamma^{k-t} r_k$$
+The policy gradient objective is:
+
+$$\hat{L}_{\text{REINFORCE}} := \mathbb{E}_{T \sim \text{Unif}[0,\tau-1]}\left[\log \pi_\theta(A_T \mid S_T)  G_T\right]$$
 
 The total loss includes an entropy regularization term:
 
-$$\mathcal{L} = -\frac{1}{N} \sum_i \log \pi_\theta(a_i | s_i)  G_i - \beta  H(\pi_\theta)$$
+$$\hat{L} = \hat{L}_{\text{REINFORCE}} - c_e  H[\pi_\theta]$$
+
+where $c_e = \beta$ is the entropy coefficient.
 
 ```
 Algorithm: REINFORCE
@@ -201,17 +200,19 @@ For each update:
 
 ### A2C (Advantage Actor-Critic)
 
-A2C extends REINFORCE by introducing a **learned value function** $V_\phi(s)$ as a baseline. Instead of scaling gradients by raw returns, it uses the **advantage** $A_t = R_t - V_\phi(s_t)$, which dramatically reduces variance while remaining unbiased.
+A2C extends REINFORCE by introducing a **learned value function** $V_\phi(S)$ as a baseline. Instead of scaling gradients by raw returns, it uses the **advantage** $\mathcal{A}(S_T, A_T) = R_T - V_\phi(S_T)$, which dramatically reduces variance while remaining unbiased.
 
-The advantage is computed using **n-step TD returns** with bootstrapping from the critic:
+The $n$-step TD return at timestep $T$ is computed by bootstrapping from the critic at the end of the rollout:
 
-$$R_t = r_t + \gamma r_{t+1} + \cdots + \gamma^{n-1} r_{t+n-1} + \gamma^n V_\phi(s_{t+n})$$
+$$R_T = \sum_{k=T}^{\tau-1} \gamma^{k-T} R_k \cdot \prod_{j=T}^{k-1}(1 - d_j) + \gamma^{\tau-T} V_\phi(S_\tau) \cdot \prod_{j=T}^{\tau-1}(1 - d_j)$$
 
-$$A_t = R_t - V_\phi(s_t)$$
+where $d_j$ is the done flag at step $j$. The advantage is:
+
+$$\mathcal{A}(S_T, A_T) = R_T - V_\phi(S_T)$$
 
 The total loss combines actor, critic, and entropy terms:
 
-$$\mathcal{L} = \underbrace{-\frac{1}{N}\sum_i \log \pi_\theta(a_i|s_i)  A_i}_{\text{actor loss}} + \underbrace{\text{SmoothL1}(V_\phi(s_i), R_i)}_{\text{critic loss}} - \beta  H(\pi_\theta)$$
+$$\hat{L}_{\text{A2C}} = \underbrace{-\mathbb{E}_{T}\left[\log \pi_\theta(A_T \mid S_T)  \mathcal{A}(S_T, A_T)\right]}_{\text{actor loss}} + \underbrace{c_v  \text{SmoothL1}\!\left(V_\phi(S_T), R_T\right)}_{\text{critic loss}} - c_e  H[\pi_\theta]$$
 
 ```
 Algorithm: A2C (Advantage Actor-Critic)
@@ -240,17 +241,19 @@ For each update:
 
 ### PPO (Proximal Policy Optimization)
 
-PPO improves upon A2C by preventing destructively large policy updates. It saves the **old policy** before each update and constrains the new policy to stay close via a **clipped surrogate objective**. This allows multiple epochs of mini-batch optimization on the same rollout data without instability.
+PPO improves upon A2C by preventing destructively large policy updates. It saves the **old policy** $\pi^{\text{old}}$ before each update and constrains the new policy $\pi^{\text{new}}$ to stay close via a **clipped surrogate objective**. This allows multiple epochs of mini-batch optimization on the same rollout data without instability.
 
 Advantages are estimated using **Generalized Advantage Estimation (GAE)**:
 
-$$\hat{A}_t^{\text{GAE}} = \sum_{l=0}^{T-t} (\gamma \lambda)^l \delta_{t+l}, \quad \delta_t = r_t + \gamma V_\phi(s_{t+1}) - V_\phi(s_t)$$
+$$\mathcal{A}^{\pi_{\text{old}}}(S_T, A_T) = \sum_{l=0}^{\tau-T-1} (\gamma \lambda)^l \delta_{T+l}, \quad \delta_T = R_T + \gamma  V_\phi(S_{T+1})(1-d_T) - V_\phi(S_T)$$
 
 The clipped surrogate objective is:
 
-$$\mathcal{L}^{\text{CLIP}} = -\mathbb{E}\left[\min\left(r_t(\theta)\hat{A}_t, \text{clip}(r_t(\theta), 1-\epsilon, 1+\epsilon)\hat{A}_t\right)\right]$$
+$$\hat{L}_{\text{PPO-CLIP}} := \mathbb{E}_{T \sim \text{Unif}[0,\tau-1]}\left[\min\left(\frac{\pi^{\text{new}}(A_T \mid S_T)}{\pi^{\text{old}}(A_T \mid S_T)} \mathcal{A}^{\pi_{\text{old}}}(S_T, A_T),\ \text{clip}_{1-\epsilon}^{1+\epsilon}\left(\frac{\pi^{\text{new}}(A_T \mid S_T)}{\pi^{\text{old}}(A_T \mid S_T)}\right) \mathcal{A}^{\pi_{\text{old}}}(S_T, A_T)\right)\right]$$
 
-where $r_t(\theta) = \frac{\pi_\theta(a_t|s_t)}{\pi_{\theta_{\text{old}}}(a_t|s_t)}$ is the importance sampling ratio and $\epsilon = 0.2$.
+The total loss combines the clipped surrogate, value, and entropy terms:
+
+$$\hat{L}_{\text{PPO}} = \hat{L}_{\text{PPO-CLIP}} + c_v  L^{\text{value}} - c_e  H[\pi^{\text{new}}]$$
 
 ```
 Algorithm: PPO (Proximal Policy Optimization)
