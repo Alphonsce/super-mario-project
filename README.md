@@ -206,7 +206,7 @@ The $n$-step TD return at timestep $T$ is computed by bootstrapping from the cri
 
 $$R_T = \sum_{k=T}^{\tau-1} \gamma^{k-T} R_k \cdot \prod_{j=T}^{k-1}(1 - d_j) + \gamma^{\tau-T} V_\phi(S_\tau) \cdot \prod_{j=T}^{\tau-1}(1 - d_j)$$
 
-where $d_j$ is the done flag at step $j$. The advantage is:
+where $d_j \in \{0, 1\}$ is the episode termination flag at step $j$ — equal to $1$ if the episode ended at that step (death, timeout, or flag reached), and $0$ otherwise. The product $\prod_{j=T}^{k-1}(1-d_j)$ zeroes out any reward contribution from beyond an episode boundary, ensuring that returns from a new episode are not mixed into the current one. The advantage is:
 
 $$\mathcal{A}(S_T, A_T) = R_T - V_\phi(S_T)$$
 
