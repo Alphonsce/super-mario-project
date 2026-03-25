@@ -255,8 +255,6 @@ The value loss uses **Smooth L1 (Huber) loss** between the critic's prediction a
 
 $$L^{\text{value}} = \text{SmoothL1}\left(\hat{R}_T, V_\phi^{\text{new}}(S_T)\right)$$
 
-where $\text{SmoothL1}(x, y) = \begin{cases} \frac{1}{2}(x-y)^2 & \text{if } |x-y| < 1 \\ |x-y| - \frac{1}{2} & \text{otherwise} \end{cases}$
-
 This is less sensitive to outlier returns than MSE, stabilizing critic updates during the multiple PPO epochs.
 
 The total loss combines the clipped surrogate, value, and entropy terms:
