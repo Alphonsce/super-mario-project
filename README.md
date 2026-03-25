@@ -204,15 +204,15 @@ A2C extends REINFORCE by introducing a **learned value function** $V_\phi(S)$ as
 
 The $n$-step TD return at timestep $T$ is computed by bootstrapping from the critic at the end of the rollout:
 
-$$R_T = \sum_{k=T}^{\tau-1} \gamma^{k-T} R_k \cdot \prod_{j=T}^{k-1}(1 - d_j) + \gamma^{\tau-T} V_\phi(S_\tau) \cdot \prod_{j=T}^{\tau-1}(1 - d_j)$$
+$$G_T = \sum_{k=T}^{\tau-1} \gamma^{k-T} R_k \cdot \prod_{j=T}^{k-1}(1 - d_j) + \gamma^{\tau-T} V_\phi(S_\tau) \cdot \prod_{j=T}^{\tau-1}(1 - d_j)$$
 
 where $d_j \in \{0, 1\}$ is the episode termination flag at step $j$ — equal to $1$ if the episode ended at that step (death, timeout, or flag reached), and $0$ otherwise. The product $\prod_{j=T}^{k-1}(1-d_j)$ zeroes out any reward contribution from beyond an episode boundary, ensuring that returns from a new episode are not mixed into the current one. The advantage is:
 
-$$\mathcal{A}(S_T, A_T) = R_T - V_\phi(S_T)$$
+$$\mathcal{A}(S_T, A_T) = G_T - V_\phi(S_T)$$
 
 The total loss combines actor, critic, and entropy terms:
 
-$$\hat{L}_{\text{A2C}} = \underbrace{-\mathbb{E}_{T}\left[\log \pi_\theta(A_T \mid S_T)  \mathcal{A}(S_T, A_T)\right]}_{\text{actor loss}} + \underbrace{c_v  \text{SmoothL1}\left(V_\phi(S_T), R_T\right)}_{\text{critic loss}} - c_e  H[\pi_\theta]$$
+$$\hat{L}_{\text{A2C}} = \underbrace{-\mathbb{E}_{T}\left[\log \pi_\theta(A_T \mid S_T)  \mathcal{A}(S_T, A_T)\right]}_{\text{actor loss}} + \underbrace{c_v  \text{SmoothL1}\left(V_\phi(S_T), G_T\right)}_{\text{critic loss}} - c_e  H[\pi_\theta]$$
 
 ```
 Algorithm: A2C (Advantage Actor-Critic)
