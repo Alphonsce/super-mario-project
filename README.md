@@ -108,7 +108,7 @@ $$r_t = \frac{1}{10}\left(\frac{\Delta\text{score}}{40} + r_{\text{terminal}}\ri
 
 | Event | Reward (before $\frac{1}{10}$ scaling) |
 |---|---|
-| Each step | $\frac{\text{score}_t - \text{score}_{t-1}}{40}$ — scaled in-game score increase |
+| Each step | $(\text{score}_t - \text{score}_{t-1}) / 40$ — scaled in-game score increase |
 | Reaching the flag (`flag_get = True`) | $+50$ |
 | Dying (`done = True, flag_get = False`) | $-50$ |
 
@@ -163,7 +163,7 @@ REINFORCE is the simplest policy gradient method. It uses **Monte Carlo returns*
 
 The policy gradient is:
 
-$$\nabla_\theta J(\theta) = \mathbb{E}_{\tau \sim \pi_\theta} \left[ \sum_{t=0}^{T} \nabla_\theta \log \pi_\theta(a_t | s_t) \, G_t \right]$$
+$$\nabla_\theta J(\theta) = \mathbb{E}_{\tau \sim \pi_\theta} \left[ \sum_{t=0}^{T} \nabla_\theta \log \pi_\theta(a_t | s_t)  G_t \right]$$
 
 where the return is computed as:
 
@@ -171,7 +171,7 @@ $$G_t = \sum_{k=0}^{T-t} \gamma^k r_{t+k+1}$$
 
 The total loss includes an entropy regularization term:
 
-$$\mathcal{L} = -\frac{1}{N} \sum_i \log \pi_\theta(a_i | s_i) \, G_i - \beta \, H(\pi_\theta)$$
+$$\mathcal{L} = -\frac{1}{N} \sum_i \log \pi_\theta(a_i | s_i)  G_i - \beta  H(\pi_\theta)$$
 
 ```
 Algorithm: REINFORCE
@@ -206,7 +206,7 @@ $$A_t = R_t - V_\phi(s_t)$$
 
 The total loss combines actor, critic, and entropy terms:
 
-$$\mathcal{L} = \underbrace{-\frac{1}{N}\sum_i \log \pi_\theta(a_i|s_i) \, A_i}_{\text{actor loss}} + \underbrace{\text{SmoothL1}(V_\phi(s_i),\, R_i)}_{\text{critic loss}} - \beta \, H(\pi_\theta)$$
+$$\mathcal{L} = \underbrace{-\frac{1}{N}\sum_i \log \pi_\theta(a_i|s_i)  A_i}_{\text{actor loss}} + \underbrace{\text{SmoothL1}(V_\phi(s_i), R_i)}_{\text{critic loss}} - \beta  H(\pi_\theta)$$
 
 ```
 Algorithm: A2C (Advantage Actor-Critic)
@@ -243,7 +243,7 @@ $$\hat{A}_t^{\text{GAE}} = \sum_{l=0}^{T-t} (\gamma \lambda)^l \delta_{t+l}, \qu
 
 The clipped surrogate objective is:
 
-$$\mathcal{L}^{\text{CLIP}} = -\mathbb{E}\left[\min\left(r_t(\theta)\hat{A}_t,\; \text{clip}(r_t(\theta),\, 1-\epsilon,\, 1+\epsilon)\hat{A}_t\right)\right]$$
+$$\mathcal{L}^{\text{CLIP}} = -\mathbb{E}\left[\min\left(r_t(\theta)\hat{A}_t, \text{clip}(r_t(\theta), 1-\epsilon, 1+\epsilon)\hat{A}_t\right)\right]$$
 
 where $r_t(\theta) = \frac{\pi_\theta(a_t|s_t)}{\pi_{\theta_{\text{old}}}(a_t|s_t)}$ is the importance sampling ratio and $\epsilon = 0.2$.
 
@@ -313,7 +313,7 @@ Best training run: **LR = $1 \times 10^{-4}$**.
   <img src="images/reinforce_x_position.png" width="700"/>
 </p>
 
-REINFORCE, using only Monte Carlo returns without a value baseline, shows the **noisiest** learning among the three methods. With LR=$1\times10^{-4}$ the agent gradually progresses through the level and occasionally reaches the finish, though the curve remains highly volatile throughout training. Higher learning rates ($3\times10^{-4}$) lead to worse performance, while lower ones ($1\times10^{-5}$, $5\times10^{-5}$) learn too slowly to show meaningful progress within 5000 updates.
+REINFORCE, using only Monte Carlo returns without a value baseline, shows the **noisiest** learning among the three methods. With LR=$1\times10^{-4}$ the agent gradually progresses through the level and occasionally reaches the finish, though the curve remains highly volatile throughout training. Higher learning rates ($3\times10^{-4}$) lead to too big Variance in updates, while lower ones ($1\times10^{-5}$, $5\times10^{-5}$) learn too slowly to show meaningful progress within 5000 updates.
 
 #### A2C
 
@@ -323,7 +323,7 @@ Best training run: **LR = $1 \times 10^{-3}$**.
   <img src="images/a2c_x_position.png" width="700"/>
 </p>
 
-A2C benefits from the learned value baseline, resulting in **lower variance** compared to REINFORCE. With LR=$1\times10^{-3}$ the agent converges to consistently reaching the finish line well before 3000 updates. Smaller learning rates ($1\times10^{-4}$, $3\times10^{-4}$) still converge but more slowly, while LR=$1\times10^{-5}$ and $5\times10^{-5}$ show limited progress. The advantage of variance reduction through the critic is clearly visible in the smoother learning curves.
+A2C benefits from the learned value baseline, resulting in **lower variance** compared to REINFORCE. With LR=$1\times10^{-3}$ the agent converges to consistently reaching the finish line well before 2000 updates. Smaller learning rates ($1\times10^{-4}$, $3\times10^{-4}$) still converge but more slowly, while LR=$1\times10^{-5}$ and $5\times10^{-5}$ show limited progress. The advantage of variance reduction through the critic is clearly visible in the smoother learning curves.
 
 #### PPO
 
@@ -341,7 +341,7 @@ PPO requires a **much smaller learning rate** ($1\times10^{-5}$) because it perf
   <img src="images/all_x_position.png" width="700"/>
 </p>
 
-Side-by-side comparison of the best run for each algorithm. A2C (LR=$1\times10^{-3}$) converges the fastest, reaching the finish line in under 3000 updates. PPO (LR=$1\times10^{-5}$) achieves a smooth, steady trajectory. REINFORCE (LR=$1\times10^{-4}$) is the noisiest and slowest to converge, as expected from a method without a value baseline.
+Comparison of the best run for each algorithm. A2C (LR=$1\cdot ^{-3}$) converges the fastest, reaching the finish line in under 2000 updates. PPO (LR=$1\times10^{-5}$) achieves a smooth, steady trajectory. REINFORCE (LR=$1\times10^{-4}$) is the noisiest and slowest to converge, as expected from a method without a value baseline.
 
 ---
 
@@ -352,7 +352,7 @@ Each model was evaluated on **20 stochastic rollouts** (actions sampled from the
 | Algorithm | Checkpoint | Success Rate | Avg X Position | Avg Return | Avg Time (successful) |
 |---|---|---|---|---|---|
 | **A2C** (LR=1e-3) | update 5000 | **100%** (20/20) | **3161.0** | **314.8** | 55.0s |
-| **PPO** (LR=1e-5) | update 8750 | 90% (18/20) | 2979.2 | 293.8 | 54.1s |
+| **PPO** (LR=1e-5) | update 5000 | 90% (18/20) | 2979.2 | 293.8 | 54.1s |
 | **REINFORCE** (LR=1e-4) | update 5000 | 80% (16/20) | 2874.2 | 281.1 | 65.1s |
 
 A2C achieves **perfect completion rate** with the most consistent behavior. PPO reaches 90% with very fast completions. REINFORCE reaches 80% but with higher variance in completion times.
