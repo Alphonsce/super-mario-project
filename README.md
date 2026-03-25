@@ -251,7 +251,7 @@ The clipped surrogate objective is:
 
 $$\hat{L}_{\text{PPO-CLIP}} := \mathbb{E}_{T \sim \text{Unif}[0,\tau-1]}\left[\min\left(\frac{\pi^{\text{new}}(A_T \mid S_T)}{\pi^{\text{old}}(A_T \mid S_T)} \mathcal{A}^{\pi_{\text{old}}}(S_T, A_T),\ \text{clip}_{1-\epsilon}^{1+\epsilon}\left(\frac{\pi^{\text{new}}(A_T \mid S_T)}{\pi^{\text{old}}(A_T \mid S_T)}\right) \mathcal{A}^{\pi_{\text{old}}}(S_T, A_T)\right)\right]$$
 
-The value loss uses **Smooth L1 (Huber) loss** between the critic's prediction and the GAE-derived target return $\hat{R}_T = \mathcal{A}^{old}(S_T, A_T) + V_\phi(S_T)$:
+The value loss uses **Smooth L1 (Huber) loss** between the critic's prediction and the GAE-derived target return $\hat{R}_T = \mathcal{A}^{\mathrm{old}}(S_T, A_T) + V_\phi(S_T)$:
 
 $$L^{\text{value}} = \text{SmoothL1}\left(\hat{R}_T, V_\phi^{\text{new}}(S_T)\right)$$
 
