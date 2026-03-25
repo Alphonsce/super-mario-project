@@ -313,7 +313,7 @@ Best training run: **LR = $1 \times 10^{-4}$**.
   <img src="images/reinforce_x_position.png" width="700"/>
 </p>
 
-REINFORCE, using only Monte Carlo returns without a value baseline, shows the **noisiest** learning among the three methods. With LR=$1 \times 10^{-4}$ the agent gradually progresses through the level and occasionally reaches the finish, though the curve remains highly volatile throughout training. Higher learning rates ($3 \times 10^{-4}$) lead to too big Variance in updates, while lower ones ($1 \times 10^{-5}$, $5 \times 10^{-5}$) learn too slowly to show meaningful progress within 5000 updates.
+REINFORCE, using only Monte Carlo returns without a value baseline, shows the **noisiest** learning among the three methods. With LR = $1 \times 10^{-4}$ the agent gradually progresses through the level and occasionally reaches the finish, though the curve remains highly volatile throughout training. Higher learning rates ($3 \times 10^{-4}$) lead to too big Variance in updates, while lower ones ($1 \times 10^{-5}$, $5 \times 10^{-5}$) learn too slowly to show meaningful progress within 5000 updates.
 
 #### A2C
 
@@ -323,7 +323,7 @@ Best training run: **LR = $1 \times 10^{-3}$**.
   <img src="images/a2c_x_position.png" width="700"/>
 </p>
 
-A2C benefits from the learned value baseline, resulting in **lower variance** compared to REINFORCE. With LR=$1 \times 10^{-3}$ the agent converges to consistently reaching the finish line well before 2000 updates. Smaller learning rates ($1 \times 10^{-4}$, $3 \times 10^{-4}$) still converge but more slowly, while LR=$1 \times 10^{-5}$ and $5 \times 10^{-5}$ show limited progress. The advantage of variance reduction through the critic is clearly visible in the smoother learning curves.
+A2C benefits from the learned value baseline, resulting in **lower variance** compared to REINFORCE. With LR = $1 \times 10^{-3}$ the agent converges to consistently reaching the finish line well before 2000 updates. Smaller learning rates ($1 \times 10^{-4}$, $3 \times 10^{-4}$) still converge but more slowly, while LR = $1 \times 10^{-5}$ and $5 \times 10^{-5}$ show limited progress. The advantage of variance reduction through the critic is clearly visible in the smoother learning curves.
 
 #### PPO
 
@@ -341,7 +341,7 @@ PPO requires a **much smaller learning rate** ($1 \times 10^{-5}$) because it pe
   <img src="images/all_x_position.png" width="700"/>
 </p>
 
-Comparison of the best run for each algorithm. A2C (LR=$1\cdot ^{-3}$) converges the fastest, reaching the finish line in under 2000 updates. PPO (LR=$1 \times 10^{-5}$) achieves a smooth, steady trajectory. REINFORCE (LR=$1 \times 10^{-4}$) is the noisiest and slowest to converge, as expected from a method without a value baseline.
+Comparison of the best run for each algorithm. A2C (LR = $1\cdot ^{-3}$) converges the fastest, reaching the finish line in under 2000 updates. PPO (LR = $1 \times 10^{-5}$) achieves a smooth, steady trajectory. REINFORCE (LR = $1 \times 10^{-4}$) is the noisiest and slowest to converge, as expected from a method without a value baseline.
 
 ---
 
@@ -351,9 +351,9 @@ Each model was evaluated on **20 stochastic rollouts** (actions sampled from the
 
 | Algorithm | Checkpoint | Success Rate | Avg X Position | Avg Return | Avg Time (successful) |
 |---|---|---|---|---|---|
-| **A2C** (LR=1e-3) | update 5000 | **100%** (20/20) | **3161.0** | **314.8** | 55.0s |
-| **PPO** (LR=1e-5) | update 5000 | 90% (18/20) | 2979.2 | 293.8 | 54.1s |
-| **REINFORCE** (LR=1e-4) | update 5000 | 80% (16/20) | 2874.2 | 281.1 | 65.1s |
+| **A2C** (LR = 1e-3) | update 5000 | **100%** (20/20) | **3161.0** | **314.8** | 55.0s |
+| **PPO** (LR = 1e-5) | update 5000 | 90% (18/20) | 2979.2 | 293.8 | 54.1s |
+| **REINFORCE** (LR = 1e-4) | update 5000 | 80% (16/20) | 2874.2 | 281.1 | 65.1s |
 
 A2C achieves **perfect completion rate** with the most consistent behavior. PPO reaches 90% with very fast completions. REINFORCE reaches 80% but with higher variance in completion times.
 
@@ -361,9 +361,9 @@ A2C achieves **perfect completion rate** with the most consistent behavior. PPO 
 
 <table>
   <tr>
-    <td align="center"><b>PPO</b> (LR=1e-5, update 8750)</td>
-    <td align="center"><b>A2C</b> (LR=1e-3, update 5000)</td>
-    <td align="center"><b>REINFORCE</b> (LR=1e-4, update 5000)</td>
+    <td align="center"><b>PPO</b> (LR = 1e-5, update 8750)</td>
+    <td align="center"><b>A2C</b> (LR = 1e-3, update 5000)</td>
+    <td align="center"><b>REINFORCE</b> (LR = 1e-4, update 5000)</td>
   </tr>
   <tr>
     <td align="center"><img src="results/update_8750_x3161.0_stochastic/eval_result_stochastic.gif" width="256"/></td>
