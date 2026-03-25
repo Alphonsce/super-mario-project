@@ -108,7 +108,7 @@ $$r_t = \frac{1}{10}\left(\frac{\Delta\text{score}}{40} + r_{\text{terminal}}\ri
 
 | Event | Reward (before $\frac{1}{10}$ scaling) |
 |---|---|
-| Each step | $(\text{score}_t - \text{score}_{t-1}) / 40$ — scaled in-game score increase |
+| Each step | (score_t - score_t-1) / 40 — scaled in-game score increase |
 | Reaching the flag (`flag_get = True`) | $+50$ |
 | Dying (`done = True, flag_get = False`) | $-50$ |
 
