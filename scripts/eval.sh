@@ -1,9 +1,9 @@
 source .venv/bin/activate
 
 #========== PPO: ==========
-# path="/home/jovyan/avarlamov/skoltech/super-mario-project/checkpoints/mario_lr1e-5/update_8750_x3161.0.pt"
+# path="/home/jovyan/avarlamov/.../super-mario-project/checkpoints/mario_lr1e-5/update_8750_x3161.0.pt"
 
-path="/home/jovyan/avarlamov/skoltech/super-mario-project/checkpoints/a3c_mario_lr1e-5/update_4000_x559.8.pt"
+path=/path
 
 # Extract the second-to-last directory in the path (pred-last part before the file)
 pred_last_part=$(basename "$(dirname "$path")")
@@ -20,7 +20,7 @@ python test.py $path --episodes 20 --gif-path eval_result_deterministic.gif --lo
 
 # =========== A2C: ==========
 
-path=
+path=/path
 
 # Extract the second-to-last directory in the path (pred-last part before the file)
 pred_last_part=$(basename "$(dirname "$path")")
@@ -36,7 +36,7 @@ python test.py $path --episodes 20 --gif-path eval_result_deterministic.gif --lo
 
 # =========== REINFORCE: ==========
 
-path=
+path=/path
 
 # Extract the second-to-last directory in the path (pred-last part before the file)
 pred_last_part=$(basename "$(dirname "$path")")
