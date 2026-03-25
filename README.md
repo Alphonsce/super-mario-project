@@ -251,9 +251,17 @@ The clipped surrogate objective is:
 
 $$\hat{L}_{\text{PPO-CLIP}} := \mathbb{E}_{T \sim \text{Unif}[0,\tau-1]}\left[\min\left(\frac{\pi^{\text{new}}(A_T \mid S_T)}{\pi^{\text{old}}(A_T \mid S_T)} \mathcal{A}^{\pi_{\text{old}}}(S_T, A_T),\ \text{clip}_{1-\epsilon}^{1+\epsilon}\left(\frac{\pi^{\text{new}}(A_T \mid S_T)}{\pi^{\text{old}}(A_T \mid S_T)}\right) \mathcal{A}^{\pi_{\text{old}}}(S_T, A_T)\right)\right]$$
 
+The value loss uses **Smooth L1 (Huber) loss** between the critic's prediction and the GAE-derived target return $\hat{R}_T = \mathcal{A}^{\pi_{\text{old}}}(S_T, A_T) + V_\phi(S_T)$:
+
+$$L^{\text{value}} = \text{SmoothL1}\!\left(\hat{R}_T,\; V_\phi^{\text{new}}(S_T)\right)$$
+
+where $\text{SmoothL1}(x, y) = \begin{cases} \frac{1}{2}(x-y)^2 & \text{if } |x-y| < 1 \\ |x-y| - \frac{1}{2} & \text{otherwise} \end{cases}$
+
+This is less sensitive to outlier returns than MSE, stabilizing critic updates during the multiple PPO epochs.
+
 The total loss combines the clipped surrogate, value, and entropy terms:
 
-$$\hat{L}_{\text{PPO}} = \hat{L}_{\text{PPO-CLIP}} + c_v  L^{\text{value}} - c_e  H[\pi^{\text{new}}]$$
+$$\hat{L}_{\text{PPO}} = \hat{L}_{\text{PPO-CLIP}} + c_v \, L^{\text{value}} - c_e \, H[\pi^{\text{new}}]$$
 
 ```
 Algorithm: PPO (Proximal Policy Optimization)
