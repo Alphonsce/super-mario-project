@@ -212,7 +212,7 @@ $$\mathcal{A}(S_T, A_T) = R_T - V_\phi(S_T)$$
 
 The total loss combines actor, critic, and entropy terms:
 
-$$\hat{L}_{\text{A2C}} = \underbrace{-\mathbb{E}_{T}\left[\log \pi_\theta(A_T \mid S_T)  \mathcal{A}(S_T, A_T)\right]}_{\text{actor loss}} + \underbrace{c_v  \text{SmoothL1}\!\left(V_\phi(S_T), R_T\right)}_{\text{critic loss}} - c_e  H[\pi_\theta]$$
+$$\hat{L}_{\text{A2C}} = \underbrace{-\mathbb{E}_{T}\left[\log \pi_\theta(A_T \mid S_T)  \mathcal{A}(S_T, A_T)\right]}_{\text{actor loss}} + \underbrace{c_v  \text{SmoothL1}\left(V_\phi(S_T), R_T\right)}_{\text{critic loss}} - c_e  H[\pi_\theta]$$
 
 ```
 Algorithm: A2C (Advantage Actor-Critic)
