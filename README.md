@@ -313,7 +313,7 @@ Best training run: **LR = $1 \times 10^{-4}$**.
   <img src="images/reinforce_x_position.png" width="700"/>
 </p>
 
-REINFORCE, using only Monte Carlo returns without a value baseline, shows the **noisiest** learning among the three methods. With LR=$1\times10^{-4}$ the agent gradually progresses through the level and occasionally reaches the finish, though the curve remains highly volatile throughout training. Higher learning rates ($3\times10^{-4}$) lead to too big Variance in updates, while lower ones ($1\times10^{-5}$, $5\times10^{-5}$) learn too slowly to show meaningful progress within 5000 updates.
+REINFORCE, using only Monte Carlo returns without a value baseline, shows the **noisiest** learning among the three methods. With LR=$1 \times 10^{-4}$ the agent gradually progresses through the level and occasionally reaches the finish, though the curve remains highly volatile throughout training. Higher learning rates ($3 \times 10^{-4}$) lead to too big Variance in updates, while lower ones ($1 \times 10^{-5}$, $5 \times 10^{-5}$) learn too slowly to show meaningful progress within 5000 updates.
 
 #### A2C
 
@@ -323,7 +323,7 @@ Best training run: **LR = $1 \times 10^{-3}$**.
   <img src="images/a2c_x_position.png" width="700"/>
 </p>
 
-A2C benefits from the learned value baseline, resulting in **lower variance** compared to REINFORCE. With LR=$1\times10^{-3}$ the agent converges to consistently reaching the finish line well before 2000 updates. Smaller learning rates ($1\times10^{-4}$, $3\times10^{-4}$) still converge but more slowly, while LR=$1\times10^{-5}$ and $5\times10^{-5}$ show limited progress. The advantage of variance reduction through the critic is clearly visible in the smoother learning curves.
+A2C benefits from the learned value baseline, resulting in **lower variance** compared to REINFORCE. With LR=$1 \times 10^{-3}$ the agent converges to consistently reaching the finish line well before 2000 updates. Smaller learning rates ($1 \times 10^{-4}$, $3 \times 10^{-4}$) still converge but more slowly, while LR=$1 \times 10^{-5}$ and $5 \times 10^{-5}$ show limited progress. The advantage of variance reduction through the critic is clearly visible in the smoother learning curves.
 
 #### PPO
 
@@ -333,7 +333,7 @@ Best training run: **LR = $1 \times 10^{-5}$**.
   <img src="images/ppo_x_position.png" width="700"/>
 </p>
 
-PPO requires a **much smaller learning rate** ($1\times10^{-5}$) because it performs 10 epochs of mini-batch optimization per rollout — effectively taking many more gradient steps per data collection cycle. Despite the lower learning rate, PPO achieves steady, monotonic improvement and converges to the finish line. Larger learning rates ($5\times10^{-5}$ and above) cause instability due to the compounding effect of multiple optimization epochs.
+PPO requires a **much smaller learning rate** ($1 \times 10^{-5}$) because it performs 10 epochs of mini-batch optimization per rollout — effectively taking many more gradient steps per data collection cycle. Despite the lower learning rate, PPO achieves steady, monotonic improvement and converges to the finish line. Larger learning rates ($5 \times 10^{-5}$ and above) cause instability due to the compounding effect of multiple optimization epochs.
 
 ### Comparison
 
@@ -341,7 +341,7 @@ PPO requires a **much smaller learning rate** ($1\times10^{-5}$) because it perf
   <img src="images/all_x_position.png" width="700"/>
 </p>
 
-Comparison of the best run for each algorithm. A2C (LR=$1\cdot ^{-3}$) converges the fastest, reaching the finish line in under 2000 updates. PPO (LR=$1\times10^{-5}$) achieves a smooth, steady trajectory. REINFORCE (LR=$1\times10^{-4}$) is the noisiest and slowest to converge, as expected from a method without a value baseline.
+Comparison of the best run for each algorithm. A2C (LR=$1\cdot ^{-3}$) converges the fastest, reaching the finish line in under 2000 updates. PPO (LR=$1 \times 10^{-5}$) achieves a smooth, steady trajectory. REINFORCE (LR=$1 \times 10^{-4}$) is the noisiest and slowest to converge, as expected from a method without a value baseline.
 
 ---
 
